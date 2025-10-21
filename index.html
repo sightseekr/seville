@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8" />
+  <title>Ultimate Map: Seville</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <script src="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.js"></script>
+  <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
+  <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
+  <style>
+    body { margin: 0; padding: 0; font-family: sans-serif; }
+    #map { position: absolute; top: 0; bottom: 0; width: 100%; }
+    .mapboxgl-popup-content {
+      background-color: rgba(255, 255, 255, 1) !important;
+      border-radius: 6px;
+      padding: 8px 12px;
+      font-family: sans-serif;
+      max-width: 220px;
+      box-shadow: 0 1px 5px rgba(0,0,0,0.2);
+    }
+    .custom-popup strong {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 4px;
+    }
+    .custom-popup p {
+      font-size: 0.85em;
+      font-style: italic;
+      margin: 0 0 6px;
+    }
+    .custom-popup .directions-btn,
+    .custom-popup .mark-visited-btn {
+      all: unset;
+      background-color: #fd8d16;
+      color: white;
+      padding: 6px 10px;
+      border: none;
+      border-radius: 16px;
+      cursor: pointer;
+      font-size: 0.85em;
+      display: inline-flex;
+      align-items: center;
+      min-height: 25px;
+      max-height: 26px;
+      gap: 5px;
+      text-decoration: none;
+    }
+    .custom-popup .directions-btn:hover {
+      background-color: #bb702a;
+    }
+    #search-container {
+      position: absolute;
+      top: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1;
+      width: 90%;
+      max-width: 400px;
+    }
+    #search {
+      width: 100%;
+      padding: 8px 12px;
+      font-size: 1em;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+    }
+    #suggestions {
+      background: white;
+      border: 1px solid #ccc;
+      border-top: none;
+      max-height: 200px;
+      overflow-y: auto;
+      position: absolute;
+      width: 100%;
+      z-index: 2;
+    }
+    .suggestion {
+      padding: 8px 12px;
+      cursor: pointer;
+    }
+    .suggestion:hover {
+      background: #f0f0f0;
+    }
+    .no-results {
+      padding: 8px 12px;
+      color: #666;
+      font-style: italic;
+    }
+    #layer-toggle {
+  position: absolute;
+  bottom: 10px;
+  left: 10px;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-size: 0.9em;
+  z-index: 2;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+
+#layer-toggle h3 {
+  margin: 0 0 8px;
+  font-size: 1em;
+}
+#layer-toggle label {
+  display: block;
+  cursor: pointer;
+}
+#layer-toggle label {
+  display: flex;
+  align-items: center;
+  margin-bottom: 4px;
+  gap: 6px;
+}
+
+#layer-toggle .legend-icon {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+}
+.icon {
+  display: inline-block;
+  background-image: url('https://api.mapbox.com/styles/v1/sightseekr/cmh0ctywg000b01s55ioyfbsq/sprite.png?access_token=pk.eyJ1Ijoic2lnaHRzZWVrciIsImEiOiJjbWJheDU5dWwwbjZqMmxzYjRqaW0wZ2FoIn0.XjR_Z_6vL3dcXrVECelgiA');
+  background-repeat: no-repeat;
+  margin-right: 6px;
+  vertical-align: middle;
+}
+
+/* Example numbers — update from your JSON */
+.icon-attraction {
+  background-position: -32px -423px;
+  width: 16px;
+  height: 16px;
+}
+
+.icon-restaurant {
+  background-position: -889px -405px;
+  width: 16px;
+  height: 16px;
+}
+
+.icon-bar {
+  background-position: -144px -423px;
+  width: 16px;
+  height: 16px;
+}
+  </style>
+</head>
+<body>
+<div id="map"></div>
+<div id="search-container">
+  <input type="text" id="search" placeholder="Find a Sightseekr recommendation in Seville..." />
+  <div id="suggestions"></div>
+</div>
+<div id="layer-toggle">
+  <h3>Sightseekr Recommended...</h3>
+  <label><input type="checkbox" id="toggle-attractions" checked> <span class="icon icon-attraction"></span>Sightseeing</label><br>
+  <label><input type="checkbox" id="toggle-restaurants" checked> <span class="icon icon-restaurant"></span> Tapas Bars & Restaurants</label><br>
+  <label><input type="checkbox" id="toggle-bars" checked> <span class="icon icon-bar"></span> Bars and Cafes</label><br>
+</div>
+
+<script>
+  mapboxgl.accessToken = 'pk.eyJ1Ijoic2lnaHRzZWVrciIsImEiOiJjbWJheDU5dWwwbjZqMmxzYjRqaW0wZ2FoIn0.XjR_Z_6vL3dcXrVECelgiA';
+
+  const map = new mapboxgl.Map({
+    container: 'map',
+    style: 'mapbox://styles/sightseekr/cmh0ctywg000b01s55ioyfbsq',
+    center: [-5.997873, 37.387123],
+    zoom: 13
+  });
+
+  map.addControl(new mapboxgl.NavigationControl(), 'bottom-right');
+  map.addControl(new mapboxgl.GeolocateControl({
+    positionOptions: { enableHighAccuracy: true },
+    trackUserLocation: true,
+    showUserHeading: true
+}), 'bottom-right');
+
+ const savedPoints = [
+  { 
+    name: "Pura Vida Terraza",
+    tags: ["bar", "rooftop", "viewpoint", "drinks", "cocktails", "outdoor", "scenic", "lively", "must-see", "recommendation", "cathedral view"],
+    description: "A rooftop bar above Los Seises hotel with amazing drinks and a view of the cathedral. You go inside through a separate door than the main entrance of the hotel - you should see a stairway which is covered in glow-in-the-dark graffiti as soon as you enter.",
+    coordinates: [-5.9916441, 37.3874006]
+  },
+  { 
+    name: "La Mala Brunch",
+    tags: ["cafe", "brunch", "lunch", "food", "indoor", "casual", "modern", "must-see", "recommendation"],
+    description: "A gorgeous cafe offering brunch and lunch options, situated under Las Setas.",
+    coordinates: [-5.9914504, 37.3933306]
+  },
+  { 
+    name: "The Second Room",
+    tags: ["bar", "cocktails", "indoor", "evening", "local", "lively", "tried-and-tested"],
+    description: "A small cocktail bar with great atmosphere and even better drinks!",
+    coordinates: [-5.9924227, 37.3872635]
+  },
+  { 
+    name: "MUY Coffee",
+    tags: ["cafe", "coffee", "breakfast", "indoor", "casual", "local", "tried-and-tested"],
+    description: "One of the best rated coffee shops in all of Seville!",
+    coordinates: [-5.992695, 37.3974185]
+  },
+  { 
+    name: "Kiosko Bombay",
+    tags: ["bar", "kiosk", "riverfront", "outdoor", "drinks", "viewpoint", "scenic", "sunset", "must-see", "recommendation"],
+    description: "A casual kiosk by the river offering amazing drinks and stunning views.",
+    coordinates: [-5.9997982, 37.3858477]
+  },
+  { 
+    name: "Terraza Atalaya",
+    tags: ["bar", "rooftop", "hotel terrace", "cocktails", "paid entry", "viewpoint", "outdoor", "scenic", "luxury", "tried-and-tested"],
+    description: "The rooftop terrace of the Tower Sevilla hotel. You have to pay a fee to enter, but you can choose a package where you also get any drink included (yes, even cocktails). So why not?!",
+    coordinates: [-6.0102695, 37.3912767]
+  },
+  { 
+    name: "100 Montaditos",
+    tags: ["cafe-bar", "snacks", "budget", "quick bite", "indoor", "casual", "popular chain", "tried-and-tested"],
+    description: "A popular chain cafe-bar in Spain specialising in very affordable drinks and snacks.",
+    coordinates: [-5.9904309, 37.3817676]
+  },
+  { 
+    name: "Santagloria Coffee & Bakery",
+    tags: ["cafe", "bakery", "coffee", "pastries", "quick bite", "casual", "indoor", "chain", "tried-and-tested"],
+    description: "A chain cafe and bakery in Spain with great coffee and snacks available!",
+    coordinates: [-6.0000602, 37.3903394]
+  },
+  {
+  name: "La Sede",
+  coordinates: [37.3939497, -5.991765],
+  description: "A small, casual tapas bar close to Las Setas offering great food.",
+  tags: ["tapas", "casual", "authentic", "local favourite", "affordable"]
+},
+{
+  name: "Bar Taperia Alcaiza",
+  coordinates: [37.3899991, -5.9916589],
+  description: "A tapas bar in a very lively square, offering affordable drinks and small plates.",
+  tags: ["tapas", "lively", "affordable", "plaza", "local atmosphere"]
+},
+{
+  name: "Bodeguita Reyes Antonio Romero",
+  coordinates: [37.3861568, -5.9965856],
+  description: "A fantastic, authentic tapas bar offering small plates and sharing plates. Enjoy the atmosphere standing at the bar, or ask to be seated. One of our favourite tapas bars we’ve ever visited!",
+  tags: ["tapas", "authentic", "must visit", "traditional", "local favourite"]
+},
+{
+  name: "Bar Casa de La Moneda",
+  coordinates: [37.3835444, -5.9942198],
+  description: "A wonderful find close to the cathedral - serving food all day, and it's great quality too. Try the carrillada (a Sevillian speciality dish)",
+  tags: ["tapas", "local speciality", "traditional", "all day dining", "authentic"]
+},
+{
+  name: "Restaurante La Valiente",
+  coordinates: [37.3847009, -6.0041434],
+  description: "A great, authentic restaurant in the Triana district of Seville!",
+  tags: ["authentic", "traditional", "local favourite", "triana", "hidden gem"]
+},
+{
+  name: "Farina 23",
+  coordinates: [37.3970687, -5.9945139],
+  description: "Sick of tapas? Don't worry, we'll try not to judge - this is a great Italian restaurant if you're looking for a change of cuisine.",
+  tags: ["italian", "alternative cuisine", "casual", "comfort food"]
+},
+{
+  name: "Pelayo Bar",
+  coordinates: [37.3870701, -5.9924258],
+  description: "A cosy tapas bar with local speciality dishes and creative takes on the classics.",
+  tags: ["tapas", "creative", "local speciality", "cosy", "authentic"]
+},
+{
+  name: "Restaurante Donaire Azabache",
+  coordinates: [37.3841777, -5.9931364],
+  description: "A stunning restaurant, highly rated, and in a great location, close to the Archivo de Indias.",
+  tags: ["fine dining", "highly rated", "special occasion", "romantic"]
+},
+{
+  name: "Bar Casa Morales",
+  coordinates: [37.3864703, -5.9946075],
+  description: "A beautiful, family-run tapas bar and restaurant with incredible food and a selection of Spanish wines too.",
+  tags: ["tapas", "traditional", "wine", "family run", "authentic"]
+},
+{
+  name: "Cervecería La Sureña",
+  coordinates: [37.3930389, -5.9915423],
+  description: "A chain, casual beer stop that can be found across Spain. No frills, just affordable drinks and snacks.",
+  tags: ["beer", "affordable", "casual", "social", "chain"]
+},
+{
+  name: "Bodega La Mina",
+  coordinates: [37.3898976, -5.9917739],
+  description: "An authentic tapas bar in a very lively square, full of locals. Amazing atmosphere and amazing food!",
+  tags: ["tapas", "lively", "local favourite", "authentic", "atmospheric"]
+},
+{
+  name: "La Taberna la Encarnación",
+  coordinates: [37.392508, -5.9913839],
+  description: "A restaurant with a great variety of dishes, with a view of Las Setas.",
+  tags: ["view", "central", "varied menu", "casual", "tourist friendly"]
+},
+{
+  name: "Catedral de Sevilla",
+  tags: ["church", "historic landmark", "architecture", "must see"],
+  coordinates: [-5.9931068, 37.3858247],
+  description: "This cathedral is the 4th largest in the world!! There's an entry fee and a dress code if you would like to enter - or just marvel at the exterior design."
+  },
+  {
+    name: "Triana district",
+    tags: ["district", "local culture", "authentic", "hidden gem"],
+    coordinates: [-6.0093952, 37.3810861],
+    description: "The other side of the river - often missed by tourists. It's a little more of an authentically Spanish area with more local bars and cafes, and a fantastic market."
+  },
+  {
+    name: "Setas de Sevilla",
+    tags: ["architecture", "viewpoint", "modern landmark", "must see"],
+    coordinates: [-5.9917478, 37.3932701],
+    description: "Las Setas is a metropolitan parasol that stretches over a huge square. It lights up in the evening in an array of colours, and you can even to get tickets to walk across the top!!"
+  },
+  {
+    name: "Royal Alcázar of Seville",
+    tags: ["palace", "historic landmark", "must see", "architecture", "cultural"],
+    coordinates: [-5.9902257, 37.3830519],
+    description: "Our favourite sightseeing spot in Seville. The palace has so much more to it than you’d expect, each time you turn you find a new room that you haven’t explored. There's an entry fee but it's worth every penny!"
+  },
+  {
+    name: "Lagoh Shopping Center",
+    tags: ["shopping", "entertainment", "restaurants", "family friendly"],
+    coordinates: [-5.9873541, 37.3424096],
+    description: "Along with a massive selection of shops, this commercial centre also has an outdoor activity area, a huge terrace filled with cafes, bars and restaurants and even a man-made lake with a beach bar."
+  },
+  {
+    name: "Plaza de España",
+    tags: ["square", "architecture", "must see", "cultural", "photo spot"],
+    coordinates: [-5.986893, 37.3771957],
+    description: "Literally translating to “Spain square”, this incredible area has sections dedicated to every region in the country. The architecture is fantastic, and the atmosphere is something else. Generally you can also catch a free flamenco show here too!"
+  },
+  {
+    name: "Parque de María Luisa",
+    tags: ["park", "nature", "relaxation", "scenic"],
+    coordinates: [-5.9883176, 37.3744981],
+    description: "An incredible city centre park with fountains, gardens and statues to see as you wander through it."
+  },
+  {
+    name: "Alfalfa district",
+    tags: ["district", "old town", "local culture", "tapas"],
+    coordinates: [-5.9885567, 37.3906432],
+    description: "The \"old town\" area of Seville with narrow, winding streets, tiny but lively tapas bars, and independent shops."
+  },
+  {
+    name: "Flamenco Dance Museum",
+    tags: ["museum", "culture", "music", "historic"],
+    coordinates: [-5.9911628, 37.3889396],
+    description: "Seville is the birthplace of Flamenco - so why not visit their flamenco museum while you're there?"
+  },
+  {
+    name: "Torre del Oro",
+    tags: ["historic landmark", "tower", "riverfront", "architecture"],
+    coordinates: [-5.9963128, 37.3824529],
+    description: "A small, historical tower built in the 13th century."
+  },
+  {
+    name: "Centro Comercial - Torre Sevilla",
+    tags: ["shopping", "modern", "luxury", "entertainment"],
+    coordinates: [-6.0102695, 37.3912767],
+    description: "An outdoor shopping centre with a luxury feel, right by the Tower of Seville hotel."
+  },
+  {
+    name: "Puente de Isabel II",
+    tags: ["bridge", "historic", "riverfront", "architecture"],
+    coordinates: [-6.0028879, 37.3857832],
+    description: "An ornate bridge crossing the river, taking you between Seville's city centre and the Triana district."
+  },
+  {
+    name: "Santa Cruz district",
+    tags: ["district", "historic", "touristy", "attractions"],
+    coordinates: [-5.9903422, 37.3842288],
+    description: "This area is home to the two biggest tourist spots in Seville - the cathedral and royal alcazar! A lively area full of attractions."
+  },
+  {
+    name: "Sevilla Tower",
+    tags: ["hotel", "viewpoint", "modern landmark", "architecture"],
+    coordinates: [-6.0104899, 37.3914323],
+    description: "A huge hotel that you can see from miles away! Now also a tourist attraction, as they have a rooftop terrace where you can enjoy the view, even if you're not staying there."
+  },
+  {
+    name: "Teatro Flamenco Sevilla",
+    tags: ["theatre", "live performance", "culture", "music"],
+    coordinates: [-5.9934613, 37.3917902],
+    description: "A small theatre offering incredible live flamenco shows."
+  },
+  {
+    name: "Plaza de la Pescadería",
+    tags: ["square", "dining", "social", "local"],
+    coordinates: [-5.9915615, 37.3898918],
+    description: "A lively, casual square by a church with numerous restaurants and bars."
+  },
+  {
+    name: "Murillo Gardens",
+    tags: ["park", "nature", "relaxation", "scenic"],
+    coordinates: [-5.9878495, 37.3834415],
+    description: "A small garden section of the Maria Luisa park, with palm trees and ornate sculptures."
+  },
+  {
+    name: "Mercado de Triana",
+    tags: ["market", "food", "local culture", "hidden gem"],
+    coordinates: [-6.0036109, 37.3857102],
+    description: "An indoor market offering fresh food, cooked dishes, small bars with local drinks like orange wine, and even a museum!"
+  },
+  {
+    name: "Bullring of Seville",
+    tags: ["historic landmark", "bullring", "architecture", "must see"],
+    coordinates: [-5.9984005, 37.3859934],
+    description: "One of the largest and most important bullrings in all of Spain, hosting regular bullfighting events and festivals. Spectacular to see, even just from the outside!"
+  },
+  {
+    name: "Riverside point",
+    tags: ["viewpoint", "hidden gem", "relaxation", "riverfront"],
+    coordinates: [-6.0011773, 37.3862735],
+    description: "This isn't a tourist attraction - but something we've added from our own perspective at Sightseekr. This area by the river, looking on to Puente de Isabel II, is a stunning place to sit and look out to the water. In the evening, you'll often find street performances here too. Spend an hour just sitting here, relaxing and being present."
+  },
+  {
+    name: "Alameda de Hércules",
+    tags: ["square", "bars", "restaurants", "social"],
+    coordinates: [-5.9938906, 37.3985785],
+    description: "A huge, open square with lots of trees, lined with countless bars and restaurants."
+  }
+];
+
+const directionsLinks = {
+  "Catedral de Sevilla": "https://maps.google.com/?cid=16473499337161076197",
+  "Triana district": "https://maps.google.com/?cid=2739424418411354898",
+  "Setas de Sevilla": "https://maps.google.com/?cid=13665238956315169476",
+  "Royal Alcázar of Seville": "https://maps.google.com/?cid=13450412327761477255",
+  "Lagoh Shopping Centre": "https://maps.google.com/?cid=15382985219247695599",
+  "Plaza de España": "https://maps.google.com/?cid=9882856811052390969",
+  "Parque de María Luisa": "https://maps.google.com/?cid=7545485340411095106",
+  "Alfalfa district": "https://maps.google.com/?cid=1708424211438641179",
+  "Flamenco Dance Museum": "https://maps.google.com/?cid=17875425817695523373",
+  "Bullring of Seville": "https://maps.google.com/?cid=4854663819099898501",
+  "Centro Comercial - Torre Sevilla": "https://google.com/maps?cid=8432033308238565349",
+  "Puente de Isabel II": "https://maps.google.com/?q=Puente+de+Isabel+II,+Sevilla,+España&ftid=0xd126c13736e1a57:0x66bde2ee55f6e104",
+  "Plaza de la Pescaderia": "https://maps.google.com/?cid=4644799590787372448",
+  "Santa Cruz district": "https://maps.google.com/?cid=10952401828286180559",
+  "Sevilla Tower": "https://maps.google.com/?cid=8038285343724914006",
+  "Mercado de Triana": "https://maps.google.com/?cid=17389346938850283706",
+  "Teatro Flamenco Sevilla": "https://maps.google.com/?cid=3476030387907964720",
+  "Murillo Gardens": "https://maps.google.com/?cid=10732313374257337246",
+  "Riverside point": "https://www.google.com/maps/place/37%C2%B023'10.6%22N+6%C2%B000'04.2%22W/@37.3862742,-6.0037449,17z/data=!3m1!4b1!4m4!3m3!8m2!3d37.38627!4d-6.00117?entry=ttu&g_ep=EgoyMDI1MTAwOC4wIKXMDSoASAFQAw%3D%3D",
+  "Alameda de Hércules": "https://maps.google.com/?cid=14430790579721742943",
+  "Torre del Oro": "https://maps.google.com/?cid=8432033308238565349",
+  "Pura Vida Terraza": "https://maps.google.com/?cid=11782794435228907990",
+  "The Second Room": "https://maps.google.com/?cid=7445021117884469481",
+  "Kiosko Bombay": "https://maps.google.com/?cid=7050325958869154055",
+  "Terraza Atalya": "https://maps.google.com/?cid=278778782566875267",
+  "La Mala Brunch": "https://maps.google.com/?cid=6137996894606143748",
+  "100 Montaditos": "https://maps.google.com/?cid=14956014549961513676",
+  "Santagloria Coffee & Bakery": "https://maps.google.com/?cid=648058925659094903",
+  "MUY Coffee": "https://maps.google.com/?cid=5133534264824499753",
+  "Cervecería La Sureña": "https://maps.google.com/?cid=11176995624315936109",
+  "La Sede": "https://maps.google.com/?cid=15124499348726275707",
+  "Bar Taperia Alcaiza": "https://maps.google.com/?cid=1287119831876291309",
+  "Bodeguita Reyes Antonio Romero": "https://maps.google.com/?cid=8746223542473859779",
+  "Bar Casa de la Moneda": "https://maps.google.com/?cid=2772950680227238778",
+  "Restaurante Donaire Azabache": "https://maps.google.com/?cid=12361450860120976953",
+  "Bar Casa Morales": "https://maps.google.com/?cid=7673716946953113258",
+  "Farina 23": "https://maps.google.com/?cid=11474024837040277926",
+  "Restaurante La Valiente": "https://maps.google.com/?cid=10889695248394195007",
+  "Bodega La Mina": "https://maps.google.com/?cid=12046885270959807908",
+  "La Taberna la Encarnación": "https://maps.google.com/?cid=5241307064495000894"
+};
+
+  const fuse = new Fuse(savedPoints, {
+    keys: ['name', 'tags'],
+    threshold: 0.4,
+    ignoreLocation: true,
+    includeScore: true
+  });
+
+  const searchInput = document.getElementById('search');
+  const suggestionsDiv = document.getElementById('suggestions');
+  let currentPopup = null;
+  let allFeatures = [];
+  let popupOpenedByClick = false
+  let popupHovering = false;
+
+  function isMobile() {
+    return /Mobi|Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
+  }
+
+function createPopup(feature, lngLat, clicked = false) {
+  // remove any existing popup
+  if (currentPopup) {
+    currentPopup.remove();
+    currentPopup = null;
+  }
+
+  // set whether this popup is "locked" by a click
+  popupOpenedByClick = clicked;
+  // reset hover flag
+  popupHovering = false;
+
+  const name = feature.properties?.name || feature.properties?.Name || feature.properties?.title || "No title";
+  const description = feature.properties?.description || feature.properties?.Description || "No description";
+  const directions = directionsLinks[name] || `https://www.google.com/maps/search/${encodeURIComponent(name)}`;
+
+  currentPopup = new mapboxgl.Popup({ closeButton: false })
+    .setLngLat(lngLat)
+    .setHTML(`
+      <div class="custom-popup">
+        <strong>${name}</strong>
+        <p>${description}</p>
+        <a href="${directions}" class="directions-btn" target="_blank">
+          <span>📍</span> <span>Directions</span>
+        </a>
+      </div>
+    `)
+    .addTo(map);
+
+  // Popup DOM hover handlers — keep popup open while mouse is over it
+  const popupEl = document.querySelector(".mapboxgl-popup");
+  if (popupEl) {
+    popupEl.addEventListener("mouseenter", () => {
+      popupHovering = true;
+    });
+    popupEl.addEventListener("mouseleave", () => {
+      popupHovering = false;
+      // close only if not locked by click
+      if (!popupOpenedByClick && currentPopup) {
+        currentPopup.remove();
+        currentPopup = null;
+      }
+    });
+  }
+}
+
+function searchAndZoomToFeature(name) {
+  const lowerName = name.toLowerCase();
+
+  // 1️⃣ First: check all loaded features (includes description)
+  for (let feature of allFeatures) {
+    const featureName =
+      feature.properties?.name ||
+      feature.properties?.Name ||
+      feature.properties?.title;
+
+    if (featureName && featureName.toLowerCase().includes(lowerName)) {
+      const coords = feature.geometry.coordinates;
+      map.flyTo({ center: coords, zoom: 17 });
+
+      setTimeout(() => createPopup(feature, coords, true), 300);
+      return;
+    }
+  }
+
+  // 2️⃣ If not found, check currently rendered features (backup)
+  const rendered = map.queryRenderedFeatures();
+  for (let feature of rendered) {
+    const featureName =
+      feature.properties?.name ||
+      feature.properties?.Name ||
+      feature.properties?.title;
+
+    if (featureName && featureName.toLowerCase().includes(lowerName)) {
+      const coords = feature.geometry.coordinates;
+      map.flyTo({ center: coords, zoom: 17 });
+
+      setTimeout(() => createPopup(feature, coords, true), 300);
+      return;
+    }
+  }
+
+// 3️⃣ Use savedPoints (guaranteed list with coords)
+const matchingPoint = savedPoints.find(p => p.name.toLowerCase().includes(lowerName));
+if (matchingPoint) {
+  if (matchingPoint.coordinates) {
+    const directions = directionsLinks[matchingPoint.name] || `https://www.google.com/maps/search/${encodeURIComponent(matchingPoint.name)}`;
+    map.flyTo({ center: matchingPoint.coordinates, zoom: 17 });
+    setTimeout(() => {
+      currentPopup = new mapboxgl.Popup({ closeButton: false })
+        .setLngLat(matchingPoint.coordinates)
+        .setHTML(`
+          <div class="custom-popup">
+            <strong>${matchingPoint.name}</strong>
+            <p>${matchingPoint.description || ''}</p>
+            <a href="${directions}" class="directions-btn" target="_blank">
+              <span>📍</span> <span>Directions</span>
+            </a>
+          </div>
+        `)
+        .addTo(map);
+    }, 300);
+  } else {
+    alert('"' + matchingPoint.name + '": Coordinates not available.');
+  }
+  return;
+}
+}
+  searchInput.addEventListener('input', () => {
+    const query = searchInput.value.trim();
+    suggestionsDiv.innerHTML = '';
+    if (!query) {
+      savedPoints.forEach(item => {
+        const div = document.createElement('div');
+        div.className = 'suggestion';
+        div.textContent = item.name;
+        div.onclick = () => {
+          searchInput.value = item.name;
+          suggestionsDiv.innerHTML = '';
+          searchAndZoomToFeature(item.name);
+        };
+        suggestionsDiv.appendChild(div);
+      });
+      return;
+    }
+    const results = fuse.search(query);
+    if (results.length) {
+      results.forEach(({ item }) => {
+        const div = document.createElement('div');
+        div.className = 'suggestion';
+        div.textContent = item.name;
+        div.onclick = () => {
+          searchInput.value = item.name;
+          suggestionsDiv.innerHTML = '';
+          searchAndZoomToFeature(item.name);
+        };
+        suggestionsDiv.appendChild(div);
+      });
+    } else {
+      const div = document.createElement('div');
+      div.className = 'no-results';
+      div.textContent = "Can't find what you're looking for? It must not be somewhere we've tried & tested for you yet! Why not try a Google Search instead?";
+      suggestionsDiv.appendChild(div);
+    }
+  });
+
+  searchInput.addEventListener('keydown', e => {
+    if (e.key === 'Enter') {
+      const query = searchInput.value.trim();
+      const result = fuse.search(query)[0];
+      if (result) {
+        searchAndZoomToFeature(result.item.name);
+        suggestionsDiv.innerHTML = '';
+      }
+    }
+  });
+
+  searchInput.addEventListener('focus', () => searchInput.dispatchEvent(new Event('input')));
+
+  document.addEventListener('click', function (event) {
+    const isClickInside = searchInput.contains(event.target) || suggestionsDiv.contains(event.target);
+    if (!isClickInside) {
+      suggestionsDiv.innerHTML = '';
+    }
+  });
+
+  map.on('load', () => {
+    const layers = ['sightseeing', 'restaurants', 'bars'];
+    const layerCheckboxes = {
+  sightseeing: document.getElementById('toggle-attractions'),
+  restaurants: document.getElementById('toggle-restaurants'),
+  bars: document.getElementById('toggle-bars')
+};
+    const layerToSourceLayer = {
+      'sightseeing': 'sevillesightseeing-0dk043',
+      'restaurants': 'sevillerestaurants-2zkg6y',
+      'bars': 'sevillebarsnew-1r2p3q',
+    };
+    const sourceId = 'composite';
+
+    function loadAllFeatures() {
+      layers.forEach(layer => {
+        const sourceLayer = layerToSourceLayer[layer];
+        try {
+          const sourceFeatures = map.querySourceFeatures(sourceId, {
+            sourceLayer: sourceLayer
+          });
+          sourceFeatures.forEach(feature => {
+            const isDuplicate = allFeatures.some(existing => 
+              existing.properties && feature.properties &&
+              existing.properties.name === feature.properties.name
+            );
+            if (!isDuplicate && feature.properties && feature.properties.name) {
+              allFeatures.push(feature);
+            }
+          });
+        } catch (error) {
+          const renderedFeatures = map.queryRenderedFeatures({ layers: [layer] });
+          renderedFeatures.forEach(feature => {
+            const isDuplicate = allFeatures.some(existing => 
+              existing.properties && feature.properties &&
+              existing.properties.name === feature.properties.name
+            );
+            if (!isDuplicate && feature.properties && feature.properties.name) {
+              allFeatures.push(feature);
+            }
+          });
+     }
+      });
+    }
+
+    map.on('data', (e) => {
+      if (e.dataType === 'source' && e.sourceId === sourceId) {
+        allFeatures = [];
+        loadAllFeatures();
+      }
+    });
+
+    map.once('idle', () => {
+      if (allFeatures.length === 0) {
+        loadAllFeatures();
+      }
+    });
+Object.entries(layerCheckboxes).forEach(([layerId, checkbox]) => {
+  if (!checkbox) return;
+
+  checkbox.addEventListener('change', (e) => {
+    const visibility = e.target.checked ? 'visible' : 'none';
+
+    if (map.getLayer(layerId)) {
+      map.setLayoutProperty(layerId, 'visibility', visibility);
+    } else {
+      console.warn(`Layer not found: ${layerId}`);
+    }
+  });
+});
+if (!isMobile()) {
+  layers.forEach(layer => {
+    // Hover: show popup (not locked)
+    map.on('mouseenter', layer, e => {
+      map.getCanvas().style.cursor = 'pointer';
+      createPopup(e.features[0], e.lngLat, false);
+    });
+
+    // When leaving the marker: wait a short tick and only close if
+    // not hovering the popup and not clicked (locked)
+    map.on('mouseleave', layer, () => {
+      map.getCanvas().style.cursor = '';
+      setTimeout(() => {
+        if (!popupOpenedByClick && !popupHovering && currentPopup) {
+          currentPopup.remove();
+          currentPopup = null;
+        }
+      }, 40); // tiny delay to allow mouse to enter popup
+    });
+
+    // Click on marker: open popup and lock it (until clicking map background)
+    map.on('click', layer, e => {
+      if (currentPopup) currentPopup.remove();
+      createPopup(e.features[0], e.lngLat, true);
+    });
+  });
+}else {
+    // Mobile: only click to open popup (no hover)
+    layers.forEach(layer => {
+        map.on('click', layer, e => {
+        if (currentPopup) currentPopup.remove();
+        createPopup(e.features[0], e.lngLat, true);
+        });
+    });
+}
+    // Click on map background: close any open popup
+    map.on('click', (e) => {
+      const features = map.queryRenderedFeatures(e.point, { layers: layers });
+      if (features.length === 0 && currentPopup) {
+        currentPopup.remove();
+        currentPopup = null;
+        popupOpenedByClick = false;
+      }
+    });
+  });
+</script>
+</body>
+</html> 
