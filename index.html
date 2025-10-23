@@ -121,7 +121,7 @@
 }
 .icon {
   display: inline-block;
-  background-image: url('https://api.mapbox.com/styles/v1/sightseekr/cmh0ctywg000b01s55ioyfbsq/sprite.png?access_token=pk.eyJ1Ijoic2lnaHRzZWVrciIsImEiOiJjbWJheDU5dWwwbjZqMmxzYjRqaW0wZ2FoIn0.XjR_Z_6vL3dcXrVECelgiA');
+  background-image: url('https://api.mapbox.com/styles/v1/sightseekr/cmh0ctywg000b01s55ioyfbsq/sprite.png?access_token=pk.eyJ1Ijoic2lnaHRzZWVrciIsImEiOiJjbWgxdmNsZ2owc3h2MDhxcGdiZno4c3ptIn0.ODNk5NVKUxNh0b9QoL5tqQ');
   background-repeat: no-repeat;
   margin-right: 6px;
   vertical-align: middle;
@@ -129,19 +129,19 @@
 
 /* Example numbers — update from your JSON */
 .icon-attraction {
-  background-position: -32px -423px;
+  background-position: -100px -424px;
   width: 16px;
   height: 16px;
 }
 
 .icon-restaurant {
-  background-position: -889px -405px;
+  background-position: -941px -406px;
   width: 16px;
   height: 16px;
 }
 
 .icon-bar {
-  background-position: -144px -423px;
+  background-position: -212px -424px;
   width: 16px;
   height: 16px;
 }
@@ -157,11 +157,11 @@
   <h3>Sightseekr Recommended...</h3>
   <label><input type="checkbox" id="toggle-attractions" checked> <span class="icon icon-attraction"></span>Sightseeing</label><br>
   <label><input type="checkbox" id="toggle-restaurants" checked> <span class="icon icon-restaurant"></span> Tapas Bars & Restaurants</label><br>
-  <label><input type="checkbox" id="toggle-bars" checked> <span class="icon icon-bar"></span> Bars and Cafes</label><br>
+  <label><input type="checkbox" id="toggle-bars" checked> <span class="icon icon-bar"></span> Bars & Cafes</label><br>
 </div>
 
 <script>
-  mapboxgl.accessToken = 'pk.eyJ1Ijoic2lnaHRzZWVrciIsImEiOiJjbWJheDU5dWwwbjZqMmxzYjRqaW0wZ2FoIn0.XjR_Z_6vL3dcXrVECelgiA';
+  mapboxgl.accessToken = 'pk.eyJ1Ijoic2lnaHRzZWVrciIsImEiOiJjbWgxdmNsZ2owc3h2MDhxcGdiZno4c3ptIn0.ODNk5NVKUxNh0b9QoL5tqQ';
 
   const map = new mapboxgl.Map({
     container: 'map',
@@ -307,7 +307,7 @@
   {
     name: "Triana district",
     tags: ["district", "local culture", "authentic", "hidden gem"],
-    coordinates: [-6.0093952, 37.3810861],
+    coordinates: [ -5.99389, 37.39857],
     description: "The other side of the river - often missed by tourists. It's a little more of an authentically Spanish area with more local bars and cafes, and a fantastic market."
   },
   {
@@ -361,7 +361,7 @@
   {
     name: "Centro Comercial - Torre Sevilla",
     tags: ["shopping", "modern", "luxury", "entertainment"],
-    coordinates: [-6.0102695, 37.3912767],
+    coordinates: [-6.00954, 37.39266],
     description: "An outdoor shopping centre with a luxury feel, right by the Tower of Seville hotel."
   },
   {
@@ -661,7 +661,7 @@ if (matchingPoint) {
   bars: document.getElementById('toggle-bars')
 };
     const layerToSourceLayer = {
-      'sightseeing': 'sevillesightseeing-0dk043',
+      'sightseeing': 'sevillesightseeingnew-ao6xv3',
       'restaurants': 'sevillerestaurants-2zkg6y',
       'bars': 'sevillebarsnew-1r2p3q',
     };
