@@ -8,7 +8,97 @@
   <link href="https://api.mapbox.com/mapbox-gl-js/v2.15.0/mapbox-gl.css" rel="stylesheet" />
   <script src="https://cdn.jsdelivr.net/npm/fuse.js/dist/fuse.min.js"></script>
   <style>
-    body { margin: 0; padding: 0; font-family: sans-serif; }
+     @import url('https://fonts.googleapis.com/css2?family=Avenir:wght@300;400&family=Brandon+Grotesque:wght@400;700&display=swap');
+
+/* Login page styles */
+#login-page {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: linear-gradient(180deg, #FFFEFC, #FADBD8);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 9999;
+}
+
+.login-container {
+  text-align: center;
+  background: #FFFEFC;
+  padding: 30px;
+  border-radius: 24px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  max-width: 420px;
+  width: 90%;
+}
+
+.login-logo {
+  width: 100%;
+  max-width: 370px;
+  height: auto;
+  margin-bottom: 0px;
+}
+
+.login-container h2 {
+  font-family: 'Brandon Grotesque', sans-serif;
+  font-size: 1.8em;
+  margin-bottom: 10px;
+  color: #444454;
+}
+
+.login-subtitle {
+  font-size: 1em;
+  color: #666;
+  margin-bottom: 24px;
+}
+
+#password {
+  width: 100%;
+  padding: 14px 18px;
+  box-sizing: border-box;
+  margin-bottom: 16px;
+  border-radius: 12px;
+  border: 1px solid #F5B9B4;
+  background-color: #FFFEFC;
+  font-size: 1em;
+  outline: none;
+  transition: border-color 0.3s ease;
+}
+
+#password:focus {
+  border-color: #EA736B;
+}
+
+#login-btn {
+  background-color: #EA736B;
+  color: white;
+  padding: 14px 28px;
+  border: none;
+  border-radius: 30px;
+  cursor: pointer;
+  font-family: 'Avenir', sans-serif;
+  font-weight: bold;
+  font-size: 1em;
+  transition: all 0.3s ease;
+  width: 100%;
+}
+
+#login-btn:hover {
+  background-color: #EF968F;
+  transform: scale(1.03);
+}
+
+#error {
+  color: #EA736B;
+  font-style: italic;
+  margin-top: 10px;
+  display: none;
+}
+
+    body { margin: 0; padding: 0; font-family: 'Avenir', sans-serif; }
+    #map-container { display: none; }
     #map { position: absolute; top: 0; bottom: 0; width: 100%; }
     .mapboxgl-popup-content {
       background-color: rgba(255, 255, 255, 1) !important;
@@ -53,7 +143,7 @@
       top: 10px;
       left: 50%;
       transform: translateX(-50%);
-      z-index: 1;
+      z-index: 1000;
       width: 90%;
       max-width: 400px;
     }
@@ -148,10 +238,29 @@
   </style>
 </head>
 <body>
+<!-- Login Page -->
+<div id="login-page">
+  <div class="login-container">
+    <img 
+      src="https://static.wixstatic.com/media/eb9535_9d1043c625be4e6882a9bc0ad92f3463~mv2.png/v1/crop/x_0,y_598,w_1500,h_338/fill/w_1200,h_270,al_c,q_85,usm_0.66_1.00_0.01,enc_avif,quality_auto/MTM%20Thin%20Pink.png" 
+      alt="Logo" 
+      class="login-logo" 
+    />
+    <h2>Welcome, explorer!</h2>
+    <p class="login-subtitle">This map is password protected</p>
+    <form id="login-form">
+      <input type="password" id="password" placeholder="Enter password" />
+      <button type="submit" id="login-btn">Enter</button>
+    </form>
+    <p id="error">Incorrect password</p>
+  </div>
+</div>
+<div id="map-container">
 <div id="map"></div>
 <div id="search-container">
   <input type="text" id="search" placeholder="Find a Sightseekr recommendation in Seville..." />
   <div id="suggestions"></div>
+</div>
 </div>
 <div id="layer-toggle">
   <h3>Sightseekr Recommended...</h3>
@@ -161,9 +270,26 @@
 </div>
 
 <script>
+ const CORRECT_PASSWORD = "abc";
+let map;
+
+// Login handler
+document.getElementById('login-form').addEventListener('submit', function(e) {
+  e.preventDefault();
+  const input = document.getElementById('password').value;
+  
+  if (input === CORRECT_PASSWORD) {
+    document.getElementById('login-page').style.display = 'none';
+    document.getElementById('map-container').style.display = 'block';
+    initializeMap();
+  } else {
+    document.getElementById('error').style.display = 'block';
+  }
+});
+    function initializeMap() {
   mapboxgl.accessToken = 'pk.eyJ1Ijoic2lnaHRzZWVrciIsImEiOiJjbWgxdmNsZ2owc3h2MDhxcGdiZno4c3ptIn0.ODNk5NVKUxNh0b9QoL5tqQ';
 
-  const map = new mapboxgl.Map({
+  map = new mapboxgl.Map({
     container: 'map',
     style: 'mapbox://styles/sightseekr/cmh0ctywg000b01s55ioyfbsq',
     center: [-5.997873, 37.387123],
@@ -768,6 +894,7 @@ if (!isMobile()) {
       }
     });
   });
+}
 </script>
 </body>
 </html> 
